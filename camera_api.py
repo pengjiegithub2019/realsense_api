@@ -5,7 +5,7 @@ from threading import Thread
 import time
 import queue
 import os
-
+from flask import Flask, render_template, Response
 
 def find_camera_devices():
     """
@@ -61,12 +61,17 @@ class Camera_D435i():
 
                 # 将图像帧转换为 NumPy 数组（OpenCV 格式）
                 color_image = np.asanyarray(color_frame.get_data())
+                ret, buffer = cv2.imencode('.jpg', color_image)
+                frame = buffer.tobytes()
+                frame = (b'--frame\r\n'
+                         b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                
                 if not frame_queue.full():
                     # todo: 这里可以按需更改流的格式
-                    frame_queue.put(color_image)
+                    frame_queue.put(frame)
                 else:
                     frame_queue.get()
-                    frame_queue.put(color_image)
+                    frame_queue.put(frame)
                 # print(f"the length of frame_queue is {frame_queue.qsize()}")
                 time.sleep(0.001)
 
@@ -104,7 +109,6 @@ class Camera_D435i():
         # self.fourcc = cv2.VideoWriter_fourcc('F', 'L', 'V', '1')
         self.fourcc = 0x00000002
         self.outVedio_RGB = None
-        
 
 
     def start_record(self):
@@ -118,12 +122,30 @@ class Camera_D435i():
     def stop_record(self):
         self.record_flag = False
 
+if __name__ == '__main__':
+    
 
-if __name__ == "__main__":
+    app = Flask(__name__)
+    @app.route('/')
+    def index():
+        return render_template('index.html')
+
+
     find_camera_devices()
-    cam1 = Camera_D435i(sn='241222077151')
+    cam1 = Camera_D435i(sn='243222074447')
     cam1.start_flow()
     cam1.color_flow_thread.start()
-    cam1.start_record()
-    time.sleep(10)
-    cam1.stop_record()
+    # cam1.start_record()
+    # time.sleep(10)
+    # cam1.stop_record()
+    def gen_frames():  # generate frame by frame from camera
+        while True:
+            # Capture frame-by-frame
+            frame = cam1.frame_queue.get()  # read the camera frame
+            yield frame
+
+    @app.route('/video_feed')
+    def video_feed():
+        return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    app.run(debug=False)

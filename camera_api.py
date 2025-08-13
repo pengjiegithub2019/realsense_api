@@ -25,7 +25,7 @@ def find_camera_devices():
         print(f"设备 {i}: {name}, SN: {sn}, 产品线: {product_line}")
 
 
-
+#find_camera_devices()
 class Camera_D435i():
 
     def __init__(self, sn: str):
@@ -53,19 +53,16 @@ class Camera_D435i():
             while True:
                 # 等待一帧图像
                 frames = self.pipeline.wait_for_frames()
-
                 # 获取彩色帧
                 color_frame = frames.get_color_frame()
                 if not color_frame:
                     continue  # 如果没有接收到帧，跳过
-
                 # 将图像帧转换为 NumPy 数组（OpenCV 格式）
                 color_image = np.asanyarray(color_frame.get_data())
                 ret, buffer = cv2.imencode('.jpg', color_image)
                 frame = buffer.tobytes()
                 frame = (b'--frame\r\n'
                          b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-                
                 if not frame_queue.full():
                     # todo: 这里可以按需更改流的格式
                     frame_queue.put(frame)
@@ -123,7 +120,6 @@ class Camera_D435i():
         self.record_flag = False
 
 if __name__ == '__main__':
-    
 
     app = Flask(__name__)
     @app.route('/')
@@ -132,7 +128,7 @@ if __name__ == '__main__':
 
 
     find_camera_devices()
-    cam1 = Camera_D435i(sn='243222074447')
+    cam1 = Camera_D435i(sn='243322071821') # 243222074447
     cam1.start_flow()
     cam1.color_flow_thread.start()
     # cam1.start_record()
